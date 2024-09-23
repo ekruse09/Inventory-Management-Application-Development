@@ -1,0 +1,104 @@
+Sub ImportOrder()
+
+    ' Declare variables for worksheets and workbooks
+    Dim inventorySheet As Worksheet
+    Dim orderSheet As Worksheet
+    Dim orderWB As Workbook
+    
+    ' Variables to store the columns containing part numbers and quantities
+    Dim inventoryPartCol As Range
+    Dim inventoryQtyCol As Range
+    Dim orderPartCol As Range
+    Dim orderQtyCol As Range
+    
+    ' Variables to store the last row numbers and the start row of order details
+    Dim orderLastRow As Long
+    Dim inventoryLastRow As Long
+    Dim orderStartRow As Long
+    
+    ' Variables to store the part number and quantity from the order file
+    Dim partNumber As String
+    Dim orderQty As Double
+    Dim foundPart As Range
+    Dim currentQty As Double
+    
+    ' Use the current workbook as the inventory file and set the active sheet as the inventory sheet
+    Set inventorySheet = ThisWorkbook.Sheets(1)
+    
+    ' Prompt the user to open the order file and set the first sheet of that workbook as the order sheet
+    Set orderWB = Application.Workbooks.Open(Application.GetOpenFilename("Excel Files (*.xlsx), *.xlsx", , "Select Order File"))
+    Set orderSheet = orderWB.Sheets(1)
+    
+    ' Find the columns for part numbers and quantities in the inventory sheet
+    Set inventoryPartCol = inventorySheet.Rows(1).Find("part number", LookIn:=xlValues, LookAt:=xlWhole)
+    Set inventoryQtyCol = inventorySheet.Rows(1).Find("qty", LookIn:=xlValues, LookAt:=xlWhole)
+    
+    ' Check if the "part number" column is missing in the inventory file
+    If inventoryPartCol Is Nothing Then
+        MsgBox "The 'part number' column is missing in the inventory file.", vbCritical
+        Exit Sub
+    End If
+    
+    ' Check if the "qty" column is missing in the inventory file
+    If inventoryQtyCol Is Nothing Then
+        MsgBox "The 'qty' column is missing in the inventory file.", vbCritical
+        Exit Sub
+    End If
+    
+    ' Automatically find the starting row of the order details based on the "QUANTITY" header in the order sheet
+    Set orderQtyCol = orderSheet.Columns(1).Find("QUANTITY", LookIn:=xlValues, LookAt:=xlWhole)
+    
+    ' If the "QUANTITY" header is not found, display an error and exit
+    If orderQtyCol Is Nothing Then
+        MsgBox "Could not find the 'QUANTITY' header in the order file.", vbCritical
+        Exit Sub
+    Else
+        ' Set the starting row for order details just below the header
+        orderStartRow = orderQtyCol.Row + 1
+    End If
+    
+    ' Find the last row in the order file (where the data ends)
+    orderLastRow = orderSheet.Cells(orderSheet.Rows.Count, 2).End(xlUp).Row
+    
+    ' Initialize a string to store information about missing parts
+    Dim missingParts As String
+    missingParts = ""
+    
+    ' Loop through each part in the order, starting from the detected start row to the last row
+    For i = orderStartRow To orderLastRow
+        ' Check if there is a part number and quantity in the current row (columns B and A)
+        If IsEmpty(orderSheet.Cells(i, 2).Value) = False And IsEmpty(orderSheet.Cells(i, 1).Value) = False Then
+            ' Extract the part number and quantity from the order file
+            partNumber = orderSheet.Cells(i, 2).Value
+            orderQty = orderSheet.Cells(i, 1).Value
+            
+            ' Try to find the part number in the inventory file
+            Set foundPart = inventorySheet.Columns(inventoryPartCol.Column).Find(partNumber, LookIn:=xlValues, LookAt:=xlWhole)
+            
+            ' If the part number is found in the inventory file
+            If Not foundPart Is Nothing Then
+                ' Get the current quantity from the inventory file and add the order quantity to it
+                currentQty = inventorySheet.Cells(foundPart.Row, inventoryQtyCol.Column).Value
+                inventorySheet.Cells(foundPart.Row, inventoryQtyCol.Column).Value = currentQty + orderQty
+            Else
+                ' If the part number is not found, record it in the missing parts string
+                missingParts = missingParts & "Part: " & partNumber & ", Qty: " & orderQty & vbCrLf
+            End If
+        End If
+    Next i
+    
+    ' If there are any missing parts, display a message listing them
+    If missingParts <> "" Then
+        MsgBox "The following parts were not found in the inventory file:" & vbCrLf & missingParts, vbExclamation, "Missing Parts"
+    End If
+    
+    ' Save the modified inventory file
+    ThisWorkbook.Save
+    
+    ' Close the order file without saving any changes
+    orderWB.Close SaveChanges:=False
+    
+    ' Inform the user that the process is complete and the inventory file has been updated
+    MsgBox "Inventory file has been updated with the order.", vbInformation, "Success"
+
+End Sub

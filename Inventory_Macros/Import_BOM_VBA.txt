@@ -1,0 +1,110 @@
+Sub UpdateInventoryFromBOM()
+
+    ' Declare variables for worksheets and workbooks
+    Dim inventorySheet As Worksheet
+    Dim bomSheet As Worksheet
+    Dim bomWB As Workbook
+    
+    Dim inventoryPartCol As Range
+    Dim inventoryQtyCol As Range
+    Dim bomPartCol As Range
+    Dim bomQtyCol As Range
+    
+    Dim bomLastRow As Long
+    Dim inventoryLastRow As Long
+    
+    Dim partNumber As String
+    Dim bomQty As Double
+    Dim foundPart As Range
+    Dim currentQty As Double
+    
+    ' Use the current workbook as the inventory file
+    Set inventorySheet = ThisWorkbook.Sheets(1)
+    
+    ' Prompt the user to open the BOM file
+    Set bomWB = Application.Workbooks.Open(Application.GetOpenFilename("Excel Files (*.xlsx), *.xlsx", , "Select BOM File"))
+    Set bomSheet = bomWB.Sheets(1)
+    
+    ' Find columns for part numbers and quantities in the inventory file
+    Set inventoryPartCol = inventorySheet.Rows(1).Find("part number", LookIn:=xlValues, LookAt:=xlWhole)
+    Set inventoryQtyCol = inventorySheet.Rows(1).Find("qty", LookIn:=xlValues, LookAt:=xlWhole)
+    
+    ' Find columns for part numbers and quantities in the BOM file
+    Set bomPartCol = bomSheet.Rows(1).Find("part number", LookIn:=xlValues, LookAt:=xlWhole)
+    Set bomQtyCol = bomSheet.Rows(1).Find("qty", LookIn:=xlValues, LookAt:=xlWhole)
+    
+    ' Check if any required columns are missing and display a message if so
+    If inventoryPartCol Is Nothing Then
+        MsgBox "The 'part number' column is missing in the inventory file.", vbCritical
+        Exit Sub
+    End If
+    
+    If inventoryQtyCol Is Nothing Then
+        MsgBox "The 'qty' column is missing in the inventory file.", vbCritical
+        Exit Sub
+    End If
+    
+    If bomPartCol Is Nothing Then
+        MsgBox "The 'part number' column is missing in the BOM file.", vbCritical
+        Exit Sub
+    End If
+    
+    If bomQtyCol Is Nothing Then
+        MsgBox "The 'qty' column is missing in the BOM file.", vbCritical
+        Exit Sub
+    End If
+    
+    ' Get the last row of data for both sheets
+    bomLastRow = bomSheet.Cells(bomSheet.Rows.Count, bomPartCol.Column).End(xlUp).Row
+    inventoryLastRow = inventorySheet.Cells(inventorySheet.Rows.Count, inventoryPartCol.Column).End(xlUp).Row
+    
+    ' Initialize strings to store missing parts and negative balances
+    Dim missingParts As String
+    Dim negativeBalanceParts As String
+    missingParts = ""
+    negativeBalanceParts = ""
+    
+    ' Loop through each part in the BOM
+    For i = 2 To bomLastRow
+        ' Get the part number and quantity from the BOM file
+        partNumber = bomSheet.Cells(i, bomPartCol.Column).Value
+        bomQty = bomSheet.Cells(i, bomQtyCol.Column).Value
+        
+        ' Try to find the part number in the inventory file
+        Set foundPart = inventorySheet.Columns(inventoryPartCol.Column).Find(partNumber, LookIn:=xlValues, LookAt:=xlWhole)
+        
+        ' If the part number is found, check the quantity
+        If Not foundPart Is Nothing Then
+            currentQty = inventorySheet.Cells(foundPart.Row, inventoryQtyCol.Column).Value
+            If currentQty >= bomQty Then
+                ' Deduct the BOM quantity from the inventory
+                inventorySheet.Cells(foundPart.Row, inventoryQtyCol.Column).Value = currentQty - bomQty
+            Else
+                ' Record negative balance parts
+                negativeBalanceParts = negativeBalanceParts & "Part: " & partNumber & ", Required: " & bomQty & ", On Hand: " & currentQty & vbCrLf
+            End If
+        Else
+            ' Record missing parts
+            missingParts = missingParts & "Part: " & partNumber & ", Qty: " & bomQty & vbCrLf
+        End If
+    Next i
+    
+    ' Display warnings if there are missing parts or negative balances
+    If missingParts <> "" Then
+        MsgBox "Missing parts:" & vbCrLf & missingParts, vbExclamation, "Missing Parts"
+    End If
+    
+    If negativeBalanceParts <> "" Then
+        MsgBox "Negative balance warning:" & vbCrLf & negativeBalanceParts, vbExclamation, "Negative Balance"
+    End If
+    
+    ' Save the modified inventory file
+    ThisWorkbook.Save
+    
+    ' Close the BOM file without saving
+    bomWB.Close SaveChanges:=False
+    
+    ' Inform the user that the process is complete
+    MsgBox "Inventory file has been updated.", vbInformation, "Success"
+
+End Sub
