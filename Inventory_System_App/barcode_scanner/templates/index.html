@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barcode Scanner</title>
+    <style>
+        /* Optional: Add CSS styles for video and canvas elements */
+        #video {
+            width: 100%;
+            max-width: 640px;
+            height: auto;
+        }
+        #canvas {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Barcode Scanner</h1>
+    <div>
+        <video id="video" autoplay></video>
+    </div>
+    <canvas id="canvas"></canvas>
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const context = canvas.getContext('2d');
+
+        // Request access to the camera
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function(stream) {
+                video.srcObject = stream;
+                video.play();
+            })
+            .catch(function(err) {
+                console.error('Error accessing the camera:', err);
+            });
+
+        // Optional: Add barcode decoding using a library like jsQR or zxing-js
+        function decodeBarcode() {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+            // Use a barcode scanning library here to process imageData
+            // Example: jsQR
+            const code = jsQR(imageData.data, imageData.width, imageData.height);
+            if (code) {
+                console.log('Found QR code:', code.data);
+                // Send code.data to Flask server for processing if needed
+                fetch('/process_barcode', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ barcode_data: code.data }),
+                })
+                .then(response => response.text())
+                .then(data => console.log('Server response:', data))
+                .catch(error => console.error('Error sending data to server:', error));
+            }
+            requestAnimationFrame(decodeBarcode);
+        }
+
+        // Call decodeBarcode function
+        decodeBarcode();
+    </script>
+</body>
+</html>

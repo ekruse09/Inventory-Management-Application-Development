@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera Access Demo</title>
+</head>
+<body>
+    <h1>Camera Access Demo</h1>
+    <video id="videoElement" autoplay></video>
+    
+    <script>
+        const video = document.getElementById('videoElement');
+
+        async function getCameraStream() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+            } catch (error) {
+                console.error('Error accessing the camera:', error);
+            }
+        }
+
+        // Call the function to start accessing the camera
+        getCameraStream();
+    </script>
+</body>
+</html>

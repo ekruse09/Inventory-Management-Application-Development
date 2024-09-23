@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Barcode Scanner</title>
+    <script src="https://unpkg.com/@zxing/library@0.18.5/build/zxing.min.js"></script>
+</head>
+<body>
+
+<h2>Scan Barcode from Camera</h2>
+
+<div id="video-container">
+    <video id="video" width="100%" height="auto" autoplay></video>
+</div>
+
+<button onclick="scanBarcode()">Scan</button>
+
+<script>
+    const video = document.getElementById('video');
+
+    async function startCamera() {
+        console.log('Starting camera...');
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            console.log('Camera stream:', stream);
+            video.srcObject = stream;
+        } catch (error) {
+            console.error('Error accessing camera:', error);
+        }
+    }
+
+    async function scanBarcode() {
+        console.log('Scanning barcode...');
+        try {
+            await startCamera();
+            const codeReader = new ZXing.BrowserQRCodeReader();
+            const result = await codeReader.decodeFromVideoDevice(undefined, 'video');
+            console.log('Scanned barcode:', result.text);
+            stopCamera();
+        } catch (error) {
+            console.error('Barcode scanning error:', error);
+        }
+    }
+
+    function stopCamera() {
+        console.log('Stopping camera...');
+        const stream = video.srcObject;
+        if (stream) {
+            const tracks = stream.getTracks();
+            tracks.forEach(track => track.stop());
+            video.srcObject = null;
+        }
+    }
+</script>
+
+</body>
+</html>
